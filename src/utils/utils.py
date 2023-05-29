@@ -1,4 +1,5 @@
 from pathlib import Path
+import numpy as np
 import logging
 
 
@@ -18,9 +19,7 @@ def check_outputpath(output_path):
     return output_path
 
 
-def logging_setup(
-    verbosity, if_write_log, output_path, filename="make_histogram"
-):
+def logging_setup(verbosity, if_write_log, output_path, filename="make_histogram"):
     log_levels = {
         0: logging.CRITICAL,
         1: logging.ERROR,
@@ -43,3 +42,7 @@ def logging_setup(
             format="%(asctime)s  %(levelname)s  %(message)s",
             datefmt="%m/%d/%Y %I:%M:%S %p",
         )
+
+
+def calculate_significance(S, B):
+    return np.sqrt(2 * ((S + B) * np.log(1 + S / B) - S))
