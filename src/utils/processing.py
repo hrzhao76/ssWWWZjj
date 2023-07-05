@@ -12,6 +12,10 @@ from utils.utils import check_inputpath, check_outputpath, logging_setup
 from utils.constants import ttree_prefix, ttree_channels, sig_GMH5pp_dsids, region_labels, bkg_ddFakes_dsid
 from utils.constants import ntuple_path, myoutput_path
 
+import hist
+from hist import Hist
+from utils.constants import fit_bin_edges_proba
+
 
 def call_hadd(file_list: list, output_path: Path, output_name: str) -> tuple:
     """This function calls the hadd command to merge the root files in the file_list.
@@ -156,7 +160,7 @@ def merge_samples(dsid_list, mc_type, is_multiple=False, logging_verbosity=0):
 
         for region, dsid_pattern_map in ntuples_pattern.items():
             for dsid, pattern in dsid_pattern_map.items():
-                logging.info(dsid, pattern)
+                logging.info(f"{dsid}, {pattern}")
                 if not MC_is_signal(dsid):
                     mc_type = "bkg"
                 file_list = sorted(ntuple_path.glob(pattern))
@@ -166,13 +170,15 @@ def merge_samples(dsid_list, mc_type, is_multiple=False, logging_verbosity=0):
     else:
         # e.g. EWK WZ samples, four dsids are corresponding to one merged root file [364739, 364740, 364741, 364742]
         for region in region_labels:
-            glob_pattern = f"_s_full_run2_{mc_type}_X_mc16?_*_{region}.root"
+            pattern = f"_s_full_run2_{mc_type}_X_mc16?_*_{region}.root"
 
             # create a single gz file merging all the dsids
             # i.e. according to the bkg type and region
             merged_gz = []
             for dsid in dsid_list:
-                file_list = sorted(ntuple_path.glob(str(dsid) + glob_pattern))
+                sub_pattern = str(dsid) + pattern
+                file_list = sorted(ntuple_path.glob(sub_pattern))
+                logging.info(f"{dsid}, {sub_pattern}")
                 if not MC_is_signal(dsid):
                     mc_type = "bkg"
                 merged_gz.append(_merge_samples(file_list, dsid, mc_type, region, is_multiple=True))
@@ -187,6 +193,67 @@ def merge_samples(dsid_list, mc_type, is_multiple=False, logging_verbosity=0):
 
 def merge_ddFakes_samples():
     for region in region_labels:
-        glob_pattern = f"data_fakes_full_run2_bkg_X_mc16?_ddFakes_X_data_X*{region}.root"
-        file_list = sorted(ntuple_path.glob(glob_pattern))
+        pattern = f"data_fakes_full_run2_bkg_X_mc16?_ddFakes_X_data_X*_{region}.root"
+        logging.info(f"-1, {pattern}")
+        file_list = sorted(ntuple_path.glob(pattern))
+
         _merge_samples(file_list, bkg_ddFakes_dsid[0], "bkg", region)
+
+
+def get_merged_mc_df(mc_df_path: Path, mc_type: Literal["sig", "bkg"] = "bkg") -> pd.DataFrame:
+    """load all the mc(bkg/sig) samples into a single dataframe given a folder path
+
+    Args:
+        mc_df_path (Path): path to the df folder
+        mc_type (Literal[&quot;sig&quot;, &quot;bkg&quot;], optional): mc_type to load. Defaults to "bkg".
+
+    Raises:
+        ValueError: if mc_type is not "sig" or "bkg"
+
+    Returns:
+        pd.DataFrame: merged mc dataframe
+    """
+
+    logging.info(f"Loading {mc_type} dataframe from {mc_df_path} ...")
+    mc_df_path = check_inputpath(mc_df_path)
+
+    merged_df = []
+    if mc_type == "sig":
+        mc_files = sorted(mc_df_path.glob("*_sig_merged_*.gz"))
+    elif mc_type == "bkg":
+        mc_files = sorted(mc_df_path.glob("*_bkg_merged_*.gz"))
+
+        # remove sub samples with sub_bkg in name
+        mc_files = [file for file in mc_files if "_sub_bkg_" not in file.name]
+
+    else:
+        raise ValueError(f"mc_type {mc_type} not supported")
+
+    for file in mc_files:
+        logging.info(f"Loading {file.stem} ...")
+        merged_df.append(joblib.load(file))
+
+    return pd.concat(merged_df)
+
+
+def get_individual_sig_df(mc_df_path: Path, dsid: int) -> pd.DataFrame:
+    logging.info(f"Loading dsid:{dsid} dataframe from {mc_df_path} ...")
+    mc_df_path = check_inputpath(mc_df_path)
+
+    mc_files = sorted(mc_df_path.glob(f"{dsid}_sig_merged_*.gz"))
+    if len(mc_files) == 0:
+        raise ValueError(f"dsid {dsid} not found in {mc_df_path}")
+    return joblib.load(mc_files[0])
+
+
+def get_hist_proba(df, column_str="ml_score", weight_str="weight"):
+    _hist = Hist(
+        hist.axis.Variable(
+            fit_bin_edges_proba, name="ml_score", label="ML score", overflow=True, underflow=True
+        ),
+        storage=hist.storage.Weight(),
+    )
+
+    _hist.fill(df[column_str], weight=df[weight_str])
+
+    return _hist

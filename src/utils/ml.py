@@ -1,15 +1,28 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import mplhep as hep
+
 from sklearn.metrics import roc_curve, auc
+from sklearn.ensemble import GradientBoostingClassifier
+
+from utils.constants import bin_edges_proba, bin_centers_proba
 
 
-def plot_overtraining(bdt, X_test, X_dev, features, y_test, y_dev, output_folder, wp_mass, kfold):
-    y_test_proba = bdt.predict_proba(X_test[features])[:, 1]
-    y_train_proba = bdt.predict_proba(X_dev[features])[:, 1]
+def plot_overtraining(clf, X_test, X_dev, features, y_test, y_dev, use_weights=True, clf_name="BDT"):
+    hep.style.use("ATLAS")
 
-    bin_edges_proba = np.linspace(0, 1, 51)
-    bin_centers_proba = (bin_edges_proba[1:] + bin_edges_proba[:-1]) / 2
+    y_test_proba = clf.predict_proba(X_test[features])[:, 1]
+    y_train_proba = clf.predict_proba(X_dev[features])[:, 1]
+
+    if use_weights:
+        X_dev_weight = X_dev["weight"]
+        X_test_weight = X_test["weight"]
+        title = "Overtraining test w/ event weights"
+    else:
+        X_dev_weight = np.ones(len(X_dev))
+        X_test_weight = np.ones(len(X_test))
+        title = "Overtraining test w/o event weights"
 
     fig, ax = plt.subplots()
     ax.hist(
@@ -18,7 +31,7 @@ def plot_overtraining(bdt, X_test, X_dev, features, y_test, y_dev, output_folder
         density=True,
         label="signal, test",
         alpha=0.5,
-        weights=X_test["weight"][y_test == 1],
+        weights=X_test_weight[y_test == 1],
     )
     ax.hist(
         y_test_proba[y_test == 0],
@@ -26,36 +39,29 @@ def plot_overtraining(bdt, X_test, X_dev, features, y_test, y_dev, output_folder
         density=True,
         label="bkg, test",
         alpha=0.5,
-        weights=X_test["weight"][y_test == 0],
+        weights=X_test_weight[y_test == 0],
     )
-
-    # ax.hist(y_train_proba[y_train==1], bins=bin_edges_proba, density=True, label="train, signal", alpha=0.5)
-    # ax.hist(y_train_proba[y_train==0], bins=bin_edges_proba, density=True, label="train, bkg", alpha=0.5)
 
     y_train_sig_bin_contents, _ = np.histogram(
-        y_train_proba[y_dev == 1], bins=bin_edges_proba, density=True, weights=X_dev["weight"][y_dev == 1]
+        y_train_proba[y_dev == 1], bins=bin_edges_proba, density=True, weights=X_dev_weight[y_dev == 1]
     )
     y_train_bkg_bin_contents, _ = np.histogram(
-        y_train_proba[y_dev == 0], bins=bin_edges_proba, density=True, weights=X_dev["weight"][y_dev == 0]
+        y_train_proba[y_dev == 0], bins=bin_edges_proba, density=True, weights=X_dev_weight[y_dev == 0]
     )
 
     ax.scatter(bin_centers_proba, y_train_sig_bin_contents, label="signal, train")
     ax.scatter(bin_centers_proba, y_train_bkg_bin_contents, label="bkg, train")
 
     ax.legend()
-    ax.set_xlabel("BDT proba")
+    ax.set_xlabel(f"{clf_name} score")
     ax.set_ylabel("Density")
-    ax.set_title("Overtraining test w/ event weights")
-    plt.show()
+    ax.set_title(title)
 
-    plt.savefig(
-        output_folder / f"Overtraining_test_m{wp_mass}_w_weights_kfold{kfold}.png", bbox_inches="tight"
-    )
+    return fig, ax
 
 
-def plot_roc(bdt, X_test, y_test, features, output_folder, wp_mass, kfold, use_weights=True):
-    # fpr, tpr, _ = roc_curve(y_test, y_test_proba, sample_weight=X_test['weight'])
-    y_test_proba = bdt.predict_proba(X_test[features])[:, 1]
+def plot_roc(clf, X_test, y_test, features, use_weights=True):
+    y_test_proba = clf.predict_proba(X_test[features])[:, 1]
 
     fig, ax = plt.subplots()
     if use_weights:
@@ -80,8 +86,8 @@ def plot_roc(bdt, X_test, y_test, features, output_folder, wp_mass, kfold, use_w
     else:
         ax.set_title("ROC w/o event weights")
 
-    plt.show()
-    if use_weights:
-        plt.savefig(output_folder / f"ROC_m{wp_mass}_w_weights_kfold{kfold}.png", bbox_inches="tight")
-    else:
-        plt.savefig(output_folder / f"ROC_m{wp_mass}_wo_weights_kfold{kfold}.png", bbox_inches="tight")
+    return fig, ax
+
+
+def save_fig(fig, output_folder, output_name):
+    fig.savefig(output_folder / output_name, bbox_inches="tight")

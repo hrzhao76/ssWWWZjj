@@ -1,0 +1,17 @@
+Universe = vanilla
+
+Output = jobs/BDT_training.$(Cluster).$(Process).out
+Error = jobs/BDT_training.$(Cluster).$(Process).err
+Log = jobs/BDT_training.$(Cluster).$(Process).log
+
+Executable = /home/hrzhao/Projects/ssWWWZjj/Run2_WW/ML/BDT/SKBDT_wrapper.sh
+
+request_memory = 4GB
+request_cpus = 4
+
+
+queue 1 arguments in (
+    200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475, 500,
+    525, 550, 600, 700, 800, 900, 1000, 1500, 2000, 3000
+)
++queue="short"

@@ -4,6 +4,10 @@ Samples/
 dev*
 VBF-WZ-lvll
 *.pkl
+jobs
+*.log
+*.err
+*.out
 ############################################
 
 # MacOS

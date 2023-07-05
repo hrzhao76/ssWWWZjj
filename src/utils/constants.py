@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import itertools
 
 work_path = Path("/home/hrzhao/Projects/ssWWWZjj/")
 ntuple_path = Path("/data/hrzhao/Samples/ssWWWZ_run3/Ntuples/")
@@ -27,17 +28,33 @@ sig_mass_dsid_map = dict.fromkeys(sig_mass_points)
 sig_mass_dsid_start = 511727
 for mass_idx, masss_point in enumerate(sig_mass_points):
     sig_mass_dsid_map[masss_point] = sig_mass_dsid_start + mass_idx
-dsid_sig_mass_map = dict(zip(sig_mass_dsid_map.values(), sig_mass_dsid_map.keys()))
+sig_dsid_mass_map = dict(zip(sig_mass_dsid_map.values(), sig_mass_dsid_map.keys()))
 
 sig_GMH5pp_dsids = np.array(list(sig_mass_dsid_map.values()), dtype=int)
 
-bkg_EWKWW_dsids = np.array([500986], dtype=int)
-bkg_QCDWW_dsids = np.array([500987], dtype=int)
-bkg_INTWW_dsids = np.array([500988], dtype=int)
+bkg_EWKWW_dsids = np.array([500989], dtype=int)
+bkg_QCDWW_dsids = np.array([500990], dtype=int)
+bkg_INTWW_dsids = np.array([500991], dtype=int)
 
 bkg_QCDWZ_dsids = np.array([364253], dtype=int)
 bkg_EWKWZ_dsids = np.array([364739, 364740, 364741, 364742], dtype=int)
 
-
 bkg_ddFakes_dsid = np.array([-1], dtype=int)
+
+bkg_categories_map = {
+    "bkg_SMWW_dsids": [bkg_EWKWW_dsids, bkg_QCDWW_dsids, bkg_INTWW_dsids],
+    "bkg_SMWZ_dsids": [bkg_EWKWZ_dsids, bkg_QCDWZ_dsids],
+    "bkg_NonPrompt_dsid": [bkg_ddFakes_dsid],
+}
+
+bkg_flattened_categories_map = {
+    key: list(itertools.chain.from_iterable(value)) for key, value in bkg_categories_map.items()
+}
+
 ### Run 2 background samples ###
+
+bin_edges_proba = np.linspace(0, 1, 51)
+bin_centers_proba = (bin_edges_proba[1:] + bin_edges_proba[:-1]) / 2
+
+fit_bin_edges_proba = np.linspace(0, 1, 11)
+fit_bin_centers_proba = (fit_bin_edges_proba[1:] + fit_bin_edges_proba[:-1]) / 2
