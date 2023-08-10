@@ -9,12 +9,23 @@ import joblib
 import logging
 
 from utils.utils import check_inputpath, check_outputpath, logging_setup
-from utils.constants import ttree_prefix, ttree_channels, sig_GMH5pp_dsids, region_labels, bkg_ddFakes_dsid
+from utils.constants import (
+    ttree_prefix,
+    ttree_channels,
+    sig_GMH5pp_dsids,
+    sig_dsid_mass_map,
+    region_labels,
+    bkg_ddFakes_dsid,
+    Mjj_bin_edges_map,
+)
+from utils.constants import bkg_flattened_categories_map, bkg_flattened_subcategories_map
 from utils.constants import ntuple_path, myoutput_path
 
 import hist
 from hist import Hist
 from utils.constants import fit_bin_edges_proba
+from ROOT import TH1, TH1F
+import array
 
 
 def call_hadd(file_list: list, output_path: Path, output_name: str) -> tuple:
@@ -246,14 +257,177 @@ def get_individual_sig_df(mc_df_path: Path, dsid: int) -> pd.DataFrame:
     return joblib.load(mc_files[0])
 
 
-def get_hist_proba(df, column_str="ml_score", weight_str="weight"):
+def get_hist_proba(x, w, if_multibin=False, name="ml_score", label="ML score"):
+    if if_multibin:
+        _bin_edges = fit_bin_edges_proba
+    else:
+        _bin_edges = np.linspace(0, 1, 2)
+
     _hist = Hist(
+        hist.axis.Variable(_bin_edges, name=name, label=label, overflow=True, underflow=True),
+        storage=hist.storage.Weight(),
+    )
+
+    _hist.fill(x, weight=w)
+
+    return _hist
+
+
+def get_hist_Mjj(
+    x, w, region="SR", if_multibin=False, low_edge=500, high_edge=3000, name="mjj", label="Mjj [GeV]"
+):
+    if if_multibin:
+        _mjj_bin_edges = Mjj_bin_edges_map[region]
+    else:
+        _mjj_bin_edges = np.linspace(low_edge, high_edge, 2)
+
+    _mjj_hist = Hist(
+        hist.axis.Variable(_mjj_bin_edges, name=name, label=label, overflow=True, underflow=True),
+        storage=hist.storage.Weight(),
+    )
+
+    _mjj_hist.fill(x, weight=w)
+
+    return _mjj_hist
+
+
+def get_hist_2D(
+    x,
+    y,
+    w,
+    x_axis_edges,
+    y_axis_edges,
+    x_axis_name="MT",
+    y_axis_name="Mjj",
+    x_axis_label="MT [GeV]",
+    y_axis_label="Mjj [GeV]",
+):
+    _hist2d = hist.Hist(
         hist.axis.Variable(
-            fit_bin_edges_proba, name="ml_score", label="ML score", overflow=True, underflow=True
+            x_axis_edges, name=x_axis_name, label=x_axis_label, overflow=True, underflow=True
+        ),
+        hist.axis.Variable(
+            y_axis_edges, name=y_axis_name, label=y_axis_label, overflow=True, underflow=True
         ),
         storage=hist.storage.Weight(),
     )
 
-    _hist.fill(df[column_str], weight=df[weight_str])
+    _hist2d.fill(MT=x, Mjj=y, weight=w)
+
+    return _hist2d
+
+
+def get_hist_1D(x, w, x_axis_edges, x_axis_name="Mjj", x_axis_label="Mjj [GeV]"):
+    _hist1d = hist.Hist(
+        hist.axis.Variable(
+            x_axis_edges, name=x_axis_name, label=x_axis_label, overflow=True, underflow=True
+        ),
+        storage=hist.storage.Weight(),
+    )
+
+    _hist1d.fill(x, weight=w)
+
+    return _hist1d
+
+
+def TH1tohist(_TH1: TH1) -> hist.Hist:
+    """convert ROOT TH1 to hist.Hist
+
+    Args:
+        _TH1 (TH1): ROOT TH1
+
+    Returns:
+        hist.Hist: return hist
+    """
+
+    bin_conents = np.array([_TH1.GetBinContent(i) for i in range(0, _TH1.GetNbinsX() + 2)])
+    bin_errors = np.array([_TH1.GetBinError(i) for i in range(0, _TH1.GetNbinsX() + 2)])
+
+    bin_edges = np.array([_TH1.GetBinLowEdge(i) for i in range(1, _TH1.GetNbinsX() + 2)])
+
+    _hist = hist.Hist(
+        hist.axis.Variable(bin_edges, flow=True, name=_TH1.GetName(), label=_TH1.GetTitle()),
+        storage=hist.storage.Weight(),
+    )
+    _hist[:] = list(zip(bin_conents[1:-1], bin_errors[1:-1]))
+
+    _hist[hist.underflow] = (bin_conents[0], bin_errors[0])
+    _hist[hist.overflow] = (bin_conents[-1], bin_errors[-1])
 
     return _hist
+
+
+def histtoTH1(_hist: hist.Hist) -> TH1:
+    _TH1 = TH1F(_hist.axes[0].name, _hist.axes[0].label, _hist.axes[0].size, _hist.axes[0].edges)
+    bin_contents = _hist.values()
+    # when seeting the bin error, the TH1.SetBinError() function will take the std dev
+    bin_errors = np.sqrt(_hist.variances())
+    for i in range(1, _hist.axes[0].size + 1):
+        _TH1.SetBinContent(i, bin_contents[i - 1])
+        _TH1.SetBinError(i, bin_errors[i - 1])
+    return _TH1
+
+
+def RebinTH1(_TH1: TH1, new_axis: Union[list, np.array, array.array]) -> TH1:
+    """This function essentially calls the TH1.Rebin() function to rebin a TH1 histogram
+
+    Args:
+        _TH1 (TH1): The original TH1 histogram to be rebinned
+        new_axis (Union[list, np.array, array.array]): The new bin edges
+
+    Raises:
+        ValueError: if new_axis[-1] > _TH1.GetBinLowEdge(_TH1.GetNbinsX()+1)
+
+    Returns:
+        TH1: The rebinned TH1 histogram
+    """
+    if new_axis[-1] > _TH1.GetBinLowEdge(_TH1.GetNbinsX() + 1):
+        raise ValueError(f"Cannot rebin! {new_axis[-1]} > {_TH1.GetBinLowEdge(_TH1.GetNbinsX()+1)}")
+
+    if not isinstance(new_axis, array.array):
+        if not isinstance(new_axis, list):
+            new_axis = new_axis.tolist()
+
+        new_axis = array.array("d", new_axis)
+
+    _TH1_rebinned = _TH1.Rebin(len(new_axis) - 1, _TH1.GetName(), new_axis)
+
+    return _TH1_rebinned
+
+
+def Rebinhist(_hist: hist.Hist, new_axis: Union[list, np.array, array.array]) -> hist.Hist:
+    """Rebin a hist histogram via ROOT TH1.Rebin() function
+
+    Args:
+        _hist (hist.Hist): the original hist histogram to be rebinned
+        new_axis (Union[list, np.array, array.array]): the new bin edges
+
+    Raises:
+        ValueError: if _hist.axes[0].edges[-1]
+
+    Returns:
+        hist.Hist: the rebinned hist histogram
+    """
+
+    if new_axis[-1] > _hist.axes[0].edges[-1]:
+        raise ValueError(f"Cannot rebin! {new_axis[-1]} > {_hist.axes[0].edges[-1]}")
+
+    _TH1 = histtoTH1(_hist)
+    _TH1_rebinned = RebinTH1(_TH1, new_axis)
+    _hist_rebinned = TH1tohist(_TH1_rebinned)
+
+    return _hist_rebinned
+
+
+def attach_MCtypes(df_decorated):
+    for k, v in bkg_flattened_categories_map.items():
+        df_decorated.loc[df_decorated.dsid.isin(v), "mc_type"] = k.split("_")[1]
+
+    for k, v in bkg_flattened_subcategories_map.items():
+        df_decorated.loc[df_decorated.dsid.isin(v), "mc_subtype"] = k.split("_")[1]
+
+    for v in sig_GMH5pp_dsids:
+        df_decorated.loc[df_decorated.dsid == v, "mc_type"] = "GMH5pp"
+        df_decorated.loc[df_decorated.dsid == v, "mc_subtype"] = f"m{sig_dsid_mass_map[v]}"
+
+    return df_decorated

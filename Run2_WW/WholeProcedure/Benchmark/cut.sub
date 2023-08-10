@@ -4,7 +4,7 @@ Output = jobs/BDT_training.$(Cluster).$(Process).out
 Error = jobs/BDT_training.$(Cluster).$(Process).err
 Log = jobs/BDT_training.$(Cluster).$(Process).log
 
-Executable = /home/hrzhao/Projects/ssWWWZjj/Run2_WW/ML/BDT/SKBDT_wrapper.sh
+Executable = /home/hrzhao/Projects/ssWWWZjj/Run2_WW/WholeProcedure/Benchmark/cutbased_wrapper.sh
 
 request_memory = 4GB
 request_cpus = 4

@@ -56,3 +56,24 @@ TODO: Add plotting scripts
 ### MLP training
 
 TODO: Add MLP training scripts
+
+### Fitting
+This is my own implementation of fitting.
+``` bash
+/home/hrzhao/Projects/ssWWWZjj/Run2_WW/Fitting/scripts/run_trexfitter.sh \
+/home/hrzhao/Projects/ssWWWZjj/Run2_WW/WholeProcedure/Attempt1/fit_configs \
+/data/hrzhao/Samples/ssWWWZ_run3/MyOutputs/Attempt1/fit_output/
+
+
+root '/home/hrzhao/Projects/ssWWWZjj/Run2_WW/Fitting/scripts/plotWWlimits.C("/data/hrzhao/Samples/ssWWWZ_run3/MyOutputs/Attempt1/fit_output/", 0)'
+
+root '/home/hrzhao/Projects/ssWWWZjj/Run2_WW/Fitting/scripts/plotWWlimits.C("/data/hrzhao/Samples/ssWWWZ_run3/MyOutputs/Attempt1/fit_output/", 1)'
+
+/home/hrzhao/Projects/ssWWWZjj/Run2_WW/scripts/plot_limit_wrapper.sh /data/hrzhao/Samples/ssWWWZ_run3/MyOutputs/Benchmark/fit_output/ 0
+```
+# Dev Notes
+
+## Fitting
+put all histograms inside one root file.  For each mass, a bdt is trained and output bdt socres are outputed within one file.
+
+Now adding the histogram in CR region, by expanding the `makehist_SKBDT.py`.

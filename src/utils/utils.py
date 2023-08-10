@@ -46,3 +46,8 @@ def logging_setup(verbosity, if_write_log, output_path, filename="make_histogram
 
 def calculate_significance(S, B):
     return np.sqrt(2 * ((S + B) * np.log(1 + S / B) - S))
+
+
+def save_fig(fig, output_folder, output_name):
+    output_folder = check_outputpath(output_folder)
+    fig.savefig(output_folder / output_name, bbox_inches="tight")

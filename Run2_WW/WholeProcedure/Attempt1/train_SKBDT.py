@@ -132,10 +132,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "wp_mass", help="mass of the H5pp", type=int, default=200, choices=list(sig_mass_dsid_map.keys())
     )
-    parser.add_argument("--ml-output-folder", help="folder to store the ml output", type=str, default="dev")
+    parser.add_argument("--identifier", help="identifier of the attempt", type=str, default="dev_attempt")
     args = parser.parse_args()
 
     wp_mass = args.wp_mass
-    ml_output_folder = myoutput_path / "ml_output" / args.ml_output_folder / f"m{wp_mass}"
+    identifier = args.identifier
+    ml_output_folder = myoutput_path / f"{identifier}/ml_output" / f"m{wp_mass}"
 
     combined_df = train_SKBDT(wp_mass, ml_output_folder)
