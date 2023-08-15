@@ -1,0 +1,17 @@
+Universe = vanilla
+
+Output = jobs/makehist_WZ.$(Cluster).$(Process).out
+Error = jobs/makehist_WZ.$(Cluster).$(Process).err
+Log = jobs/makehist_WZ.$(Cluster).$(Process).log
+
+Executable = /home/hrzhao/Projects/ssWWWZjj/Run2_WZ/Fitting/makehist_WZ_wrapper.sh
+
+request_memory = 4GB
+request_cpus = 4
+
+
+queue 1 arguments in (
+    200, 225, 250, 275, 300, 325, 350, 375, 400, 425,
+    450, 475, 500, 525, 550, 600, 700, 800, 900, 1000
+)
++queue="short"
