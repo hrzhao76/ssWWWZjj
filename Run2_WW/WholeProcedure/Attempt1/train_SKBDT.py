@@ -40,9 +40,10 @@ def train_SKBDT(wp_mass, ml_output_folder):
     if ml_output_folder is None:
         ml_output_folder = myoutput_path / "ml_output" / "dev" / f"m{wp_mass}"
 
+    print("check path")
     ml_output_folder = check_outputpath(ml_output_folder)
-
-    df_region = myoutput_path / "merged_gz" / region
+    print("get data frames")
+    df_region = myoutput_path / "merged_gz_new"# / region
     bkg_df = get_merged_mc_df(df_region)
     bkg_df["target"] = 0
 
@@ -59,7 +60,7 @@ def train_SKBDT(wp_mass, ml_output_folder):
     n_kfold = 5
 
     combined_df["kfold"] = combined_df.index % n_kfold
-
+    print("train")
     # %%
     # split into X and y based on kfold
     for idx_k in range(n_kfold):
@@ -126,6 +127,7 @@ def train_SKBDT(wp_mass, ml_output_folder):
 
 
 if __name__ == "__main__":
+    print("start program")
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -138,5 +140,5 @@ if __name__ == "__main__":
     wp_mass = args.wp_mass
     identifier = args.identifier
     ml_output_folder = myoutput_path / f"{identifier}/ml_output" / f"m{wp_mass}"
-
+    print("run training")
     combined_df = train_SKBDT(wp_mass, ml_output_folder)

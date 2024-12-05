@@ -4,7 +4,7 @@ import itertools
 
 work_path = Path("/home/hrzhao/Projects/ssWWWZjj/")
 ntuple_path = Path("/data/hrzhao/Samples/ssWWWZ_run3/Ntuples/")
-myoutput_path = Path("/data/hrzhao/Samples/ssWWWZ_run3/MyOutputs/")
+myoutput_path = Path("/afs/cern.ch/user/o/owyoung/eos/charged_higgs_analysis/MyOutputs/")
 
 ### Run 2 Fit Bin Definitions ###
 Mjj_bin_edges_SR = np.array([500.0, 850.0, 1450.0, 2100.0, 2550.0, 3000.0], dtype=float)
@@ -33,7 +33,7 @@ sig_mass_points3 = np.array([1500, 2000, 3000], dtype=int)
 sig_mass_points = np.concatenate([sig_mass_points1, sig_mass_points2, sig_mass_points3])
 
 sig_mass_dsid_map = dict.fromkeys(sig_mass_points)
-sig_mass_dsid_start = 511727
+sig_mass_dsid_start = 525925 #511727 
 for mass_idx, masss_point in enumerate(sig_mass_points):
     sig_mass_dsid_map[masss_point] = sig_mass_dsid_start + mass_idx
 sig_dsid_mass_map = dict(zip(sig_mass_dsid_map.values(), sig_mass_dsid_map.keys()))
